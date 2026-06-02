@@ -1,0 +1,100 @@
+﻿syntax = "proto3";
+
+package smartcity;
+
+enum SensorType {
+  SENSOR_TYPE_UNSPECIFIED = 0;
+  SENSOR_TEMPERATURE = 1;
+  SENSOR_AIR_QUALITY = 2;
+  SENSOR_NOISE = 3;
+}
+
+enum CommandType {
+  COMMAND_TYPE_UNSPECIFIED = 0;
+  ACTIVATE = 1;
+  DEACTIVATE = 2;
+  SET_FREQUENCY = 3;
+  SET_THRESHOLD = 4;
+}
+
+enum ClientRequestType {
+  REQUEST_TYPE_UNSPECIFIED = 0;
+  LIST_SENSORS = 1;
+  AVG_TEMPERATURE = 2;
+  AVG_CO2 = 3;
+  MAX_READING = 4;
+  ACTIVATE_SENSOR = 5;
+  DEACTIVATE_SENSOR = 6;
+  CHANGE_FREQUENCY = 7;
+  CHANGE_THRESHOLD = 8;
+  EXIT = 9;
+}
+
+enum ResponseStatus {
+  RESPONSE_STATUS_UNSPECIFIED = 0;
+  OK = 1;
+  ERROR = 2;
+}
+
+message DiscoveryRequest {
+  string gateway_id = 1;
+  string request_timestamp = 2;
+}
+
+message DiscoveryResponse {
+  string sensor_id = 1;
+  SensorType sensor_type = 2;
+  string sensor_ip = 3;
+  uint32 control_tcp_port = 4;
+  bool is_active = 5;
+  double frequency_seconds = 6;
+  double threshold = 7;
+}
+
+message SensorReading {
+  string sensor_id = 1;
+  SensorType sensor_type = 2;
+  double value = 3;
+  string unit = 4;
+  int64 timestamp_unix_ms = 5;
+  bool alert = 6;
+  string alert_message = 7;
+}
+
+message ClientRequest {
+  ClientRequestType request_type = 1;
+  string target_sensor_id = 2;
+  double value = 3;
+}
+
+message SensorInfo {
+  string sensor_id = 1;
+  SensorType sensor_type = 2;
+  string sensor_ip = 3;
+  uint32 control_tcp_port = 4;
+  bool is_active = 5;
+  double frequency_seconds = 6;
+  double threshold = 7;
+}
+
+message ClientResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  repeated SensorInfo sensors = 3;
+  double metric_value = 4;
+}
+
+message ControlCommand {
+  CommandType command_type = 1;
+  string sensor_id = 2;
+  double value = 3;
+}
+
+message ControlResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  string sensor_id = 3;
+  bool is_active = 4;
+  double frequency_seconds = 5;
+  double threshold = 6;
+}
