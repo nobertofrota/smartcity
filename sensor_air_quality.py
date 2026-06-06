@@ -1,4 +1,4 @@
-﻿import random
+import random
 import socket
 import struct
 import threading
@@ -12,18 +12,12 @@ sys.path.insert(0, str(BASE_DIR / "generated"))
 from generated import messages_pb2
 
 SENSOR_ID = "air-1"
-SENSOR_TYPE = messages_pb2.SENSOR_AIR_QUALITY
+DEVICE_TYPE = messages_pb2.AIR_QUALITY_SENSOR
 MULTICAST_GROUP = "224.1.1.1"
 MULTICAST_PORT = 10000
 DISCOVERY_RESPONSE_PORT = 10001
-CONTROL_PORT = 9101
-
-state = {
-    "active": True,
-    "frequency": 2.0,
-    "threshold": 900.0,
-}
-state_lock = threading.Lock()
+FREQUENCY_SECONDS = 2.0
+CO2_THRESHOLD = 900.0
 
 gateway_state = {
     "udp_ip": None,
@@ -41,31 +35,7 @@ def get_local_ip(remote_ip):
         return "127.0.0.1"
 
 
-def recv_exact(conn, n):
-    data = b""
-    while len(data) < n:
-        chunk = conn.recv(n - len(data))
-        if not chunk:
-            return None
-        data += chunk
-    return data
-
-
-def recv_msg(conn):
-    # Mesmo framing usado no gateway: 4 bytes de tamanho + payload.
-    header = recv_exact(conn, 4)
-    if not header:
-        return None
-    size = struct.unpack("!I", header)[0]
-    return recv_exact(conn, size)
-
-
-def send_msg(conn, payload):
-    conn.sendall(struct.pack("!I", len(payload)) + payload)
-
-
 def discovery_listener():
-    # Responde ao discovery do gateway e informa que este sensor aceita controle TCP.
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("", MULTICAST_PORT))
@@ -85,87 +55,37 @@ def discovery_listener():
                 gateway_state["udp_ip"] = gateway_ip
                 gateway_state["udp_port"] = gateway_udp_port
 
-            with state_lock:
-                resp = messages_pb2.DiscoveryResponse(
-                    sensor_id=SENSOR_ID,
-                    sensor_type=SENSOR_TYPE,
-                    sensor_ip=get_local_ip(gateway_ip),
-                    control_tcp_port=CONTROL_PORT,
-                    is_active=state["active"],
-                    frequency_seconds=state["frequency"],
-                    threshold=state["threshold"],
-                )
+            resp = messages_pb2.DiscoveryResponse(
+                sensor_id=SENSOR_ID,
+                sensor_type=DEVICE_TYPE,
+                sensor_ip=get_local_ip(gateway_ip),
+                control_tcp_port=0,
+                is_active=True,
+                frequency_seconds=FREQUENCY_SECONDS,
+                threshold=CO2_THRESHOLD,
+                device_kind=messages_pb2.SENSOR,
+                state_text="CO2 e umidade via UDP",
+            )
             sock.sendto(resp.SerializeToString(), (gateway_ip, discovery_response_port))
+            print(f"[Air] Discovery response sent to {gateway_ip}:{discovery_response_port}")
         except Exception as exc:
             print(f"[Air] discovery error: {exc}")
 
 
-def control_server():
-    # Servidor TCP local para receber comandos do gateway.
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(("0.0.0.0", CONTROL_PORT))
-    server.listen()
-    print(f"[Air] control TCP on 0.0.0.0:{CONTROL_PORT}")
-
-    while True:
-        conn, _ = server.accept()
-        threading.Thread(target=handle_control_conn, args=(conn,), daemon=True).start()
-
-
-def handle_control_conn(conn):
-    with conn:
-        try:
-            raw = recv_msg(conn)
-            if not raw:
-                return
-            cmd = messages_pb2.ControlCommand()
-            cmd.ParseFromString(raw)
-
-            with state_lock:
-                if cmd.command_type == messages_pb2.ACTIVATE:
-                    state["active"] = True
-                    msg = "Sensor ativado"
-                elif cmd.command_type == messages_pb2.DEACTIVATE:
-                    state["active"] = False
-                    msg = "Sensor desativado"
-                elif cmd.command_type == messages_pb2.SET_FREQUENCY:
-                    if cmd.value <= 0:
-                        raise ValueError("Frequencia deve ser maior que zero")
-                    state["frequency"] = cmd.value
-                    msg = f"Frequencia alterada para {cmd.value:.2f}s"
-                elif cmd.command_type == messages_pb2.SET_THRESHOLD:
-                    state["threshold"] = cmd.value
-                    msg = f"Limiar alterado para {cmd.value:.2f} ppm"
-                else:
-                    raise ValueError("Comando invalido")
-
-                resp = messages_pb2.ControlResponse(
-                    status=messages_pb2.OK,
-                    message=msg,
-                    sensor_id=SENSOR_ID,
-                    is_active=state["active"],
-                    frequency_seconds=state["frequency"],
-                    threshold=state["threshold"],
-                )
-            send_msg(conn, resp.SerializeToString())
-        except Exception as exc:
-            resp = messages_pb2.ControlResponse(
-                status=messages_pb2.ERROR,
-                message=f"Erro no comando: {exc}",
-                sensor_id=SENSOR_ID,
-                is_active=state["active"],
-                frequency_seconds=state["frequency"],
-                threshold=state["threshold"],
-            )
-            try:
-                send_msg(conn, resp.SerializeToString())
-            except Exception:
-                pass
+def build_reading(metric, value, unit, alert=False, alert_message=""):
+    return messages_pb2.SensorReading(
+        sensor_id=SENSOR_ID,
+        sensor_type=DEVICE_TYPE,
+        value=value,
+        unit=unit,
+        timestamp_unix_ms=int(time.time() * 1000),
+        alert=alert,
+        alert_message=alert_message,
+        metric=metric,
+    )
 
 
 def send_readings():
-    # Quando ativo, envia CO2 e dispara alerta quando passa do limiar configurado.
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
         with gateway_lock:
@@ -176,34 +96,31 @@ def send_readings():
             time.sleep(1)
             continue
 
-        with state_lock:
-            active = state["active"]
-            freq = state["frequency"]
-            threshold = state["threshold"]
+        co2 = round(random.uniform(400.0, 1200.0), 2)
+        humidity = round(random.uniform(35.0, 85.0), 2)
+        alert = co2 > CO2_THRESHOLD
+        readings = [
+            build_reading(
+                "co2",
+                co2,
+                "ppm",
+                alert,
+                f"CO2 acima do limiar ({CO2_THRESHOLD:.2f})" if alert else "",
+            ),
+            build_reading("humidity", humidity, "%"),
+        ]
 
-        if active:
-            value = round(random.uniform(400.0, 1200.0), 2)
-            alert = value > threshold
-            reading = messages_pb2.SensorReading(
-                sensor_id=SENSOR_ID,
-                sensor_type=SENSOR_TYPE,
-                value=value,
-                unit="ppm",
-                timestamp_unix_ms=int(time.time() * 1000),
-                alert=alert,
-                alert_message=(f"CO2 acima do limiar ({threshold:.2f})" if alert else ""),
-            )
+        for reading in readings:
             try:
                 sock.sendto(reading.SerializeToString(), (gateway_udp_ip, gateway_udp_port))
-                suffix = " ALERTA" if alert else ""
-                print(f"[Air] {value} ppm{suffix}")
             except Exception as exc:
                 print(f"[Air] send error: {exc}")
 
-        time.sleep(freq)
+        suffix = " ALERTA" if alert else ""
+        print(f"[Air] CO2={co2} ppm humidity={humidity}%{suffix}")
+        time.sleep(FREQUENCY_SECONDS)
 
 
 if __name__ == "__main__":
     threading.Thread(target=discovery_listener, daemon=True).start()
-    threading.Thread(target=control_server, daemon=True).start()
     send_readings()

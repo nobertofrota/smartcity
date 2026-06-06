@@ -30,6 +30,7 @@ class Gateway:
         # Aqui fica o "estado vivo" da cidade: sensores descobertos e histórico de leituras.
         self.sensors = {}
         self.readings_by_type = defaultdict(list)
+        self.readings_by_metric = defaultdict(list)
         self.readings_all = []
         self.lock = threading.Lock()
 
@@ -66,6 +67,8 @@ class Gateway:
             "is_active": discovery.is_active,
             "frequency_seconds": discovery.frequency_seconds,
             "threshold": discovery.threshold,
+            "device_kind": discovery.device_kind,
+            "state_text": discovery.state_text,
             "last_seen": time.time(),
         }
         with self.lock:
@@ -100,12 +103,13 @@ class Gateway:
 
                 with self.lock:
                     self.readings_by_type[reading.sensor_type].append(reading)
+                    self.readings_by_metric[reading.metric].append(reading)
                     self.readings_all.append(reading)
                     if reading.sensor_id in self.sensors:
                         self.sensors[reading.sensor_id]["last_seen"] = time.time()
 
                 alert = f" ALERT={reading.alert} {reading.alert_message}" if reading.alert else ""
-                print(f"[Gateway] Reading {reading.sensor_id} {reading.value} {reading.unit}{alert}")
+                print(f"[Gateway] Reading {reading.sensor_id} {reading.metric}={reading.value} {reading.unit}{alert}")
             except Exception as exc:
                 print(f"[Gateway] UDP error: {exc}")
 
@@ -125,23 +129,28 @@ class Gateway:
             except Exception as exc:
                 print(f"[Gateway] Discovery response error: {exc}")
 
-    def send_control_command(self, sensor_id, command_type, value=0.0):
-        # Cliente nunca conversa direto com sensor controlável; passa sempre pelo gateway.
+    def send_control_command(self, sensor_id, command_type, value=0.0, text_value=""):
+        # Cliente nunca conversa direto com atuador; passa sempre pelo gateway.
         with self.lock:
             sensor = self.sensors.get(sensor_id)
 
         if not sensor:
-            return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Sensor nao encontrado")
-        if sensor["control_tcp_port"] == 0:
-            return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Sensor nao controlavel")
+            return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Dispositivo nao encontrado")
+        if sensor["device_kind"] != messages_pb2.ACTUATOR or sensor["control_tcp_port"] == 0:
+            return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Fonte de dados nao controlavel")
 
         cmd = messages_pb2.ControlCommand(
             command_type=command_type,
             sensor_id=sensor_id,
             value=value,
+            text_value=text_value,
         )
 
         try:
+            print(
+                f"[Gateway] TCP control -> {sensor_id} "
+                f"command={command_type} value={value} text={text_value}"
+            )
             with socket.create_connection((sensor["sensor_ip"], sensor["control_tcp_port"]), timeout=3) as conn:
                 self.send_msg(conn, cmd.SerializeToString())
                 raw = self.recv_msg(conn)
@@ -150,6 +159,7 @@ class Gateway:
 
                 ctrl_resp = messages_pb2.ControlResponse()
                 ctrl_resp.ParseFromString(raw)
+                print(f"[Gateway] TCP control <- {sensor_id} status={ctrl_resp.status} message={ctrl_resp.message}")
 
             # Mantém o estado local em sincronia com o que o sensor confirmou.
             with self.lock:
@@ -157,6 +167,8 @@ class Gateway:
                     self.sensors[sensor_id]["is_active"] = ctrl_resp.is_active
                     self.sensors[sensor_id]["frequency_seconds"] = ctrl_resp.frequency_seconds
                     self.sensors[sensor_id]["threshold"] = ctrl_resp.threshold
+                    self.sensors[sensor_id]["state_text"] = ctrl_resp.state_text
+                    self.sensors[sensor_id]["last_seen"] = time.time()
 
             return messages_pb2.ClientResponse(status=ctrl_resp.status, message=ctrl_resp.message)
         except Exception as exc:
@@ -177,14 +189,22 @@ class Gateway:
                 info.is_active = sensor["is_active"] and recently_seen
                 info.frequency_seconds = sensor["frequency_seconds"]
                 info.threshold = sensor["threshold"]
+                info.device_kind = sensor["device_kind"]
+                info.state_text = sensor["state_text"]
         return resp
 
-    def metric_average(self, sensor_type):
+    def metric_average(self, metric):
         with self.lock:
-            vals = [r.value for r in self.readings_by_type[sensor_type]]
+            vals = [r.value for r in self.readings_by_metric[metric]]
         if not vals:
             return None
         return sum(vals) / len(vals)
+
+    def metric_history(self):
+        resp = messages_pb2.ClientResponse(status=messages_pb2.OK, message="Historico de leituras")
+        with self.lock:
+            resp.readings.extend(self.readings_all[-200:])
+        return resp
 
     def metric_max(self):
         with self.lock:
@@ -198,16 +218,22 @@ class Gateway:
             return self.build_sensor_list_response()
 
         if req.request_type == messages_pb2.AVG_TEMPERATURE:
-            avg = self.metric_average(messages_pb2.SENSOR_TEMPERATURE)
+            avg = self.metric_average("temperature")
             if avg is None:
                 return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Sem leituras de temperatura")
             return messages_pb2.ClientResponse(status=messages_pb2.OK, message="Media de temperatura", metric_value=avg)
 
         if req.request_type == messages_pb2.AVG_CO2:
-            avg = self.metric_average(messages_pb2.SENSOR_AIR_QUALITY)
+            avg = self.metric_average("co2")
             if avg is None:
                 return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Sem leituras de CO2")
             return messages_pb2.ClientResponse(status=messages_pb2.OK, message="Media de CO2", metric_value=avg)
+
+        if req.request_type == messages_pb2.AVG_HUMIDITY:
+            avg = self.metric_average("humidity")
+            if avg is None:
+                return messages_pb2.ClientResponse(status=messages_pb2.ERROR, message="Sem leituras de umidade")
+            return messages_pb2.ClientResponse(status=messages_pb2.OK, message="Media de umidade", metric_value=avg)
 
         if req.request_type == messages_pb2.MAX_READING:
             mx = self.metric_max()
@@ -230,6 +256,12 @@ class Gateway:
 
         if req.request_type == messages_pb2.CHANGE_THRESHOLD:
             return self.send_control_command(req.target_sensor_id, messages_pb2.SET_THRESHOLD, req.value)
+
+        if req.request_type == messages_pb2.READING_HISTORY:
+            return self.metric_history()
+
+        if req.request_type == messages_pb2.SEND_CONTROL_COMMAND:
+            return self.send_control_command(req.target_sensor_id, req.command_type, req.value, req.text_value)
 
         if req.request_type == messages_pb2.EXIT:
             return messages_pb2.ClientResponse(status=messages_pb2.OK, message="Conexao encerrada")

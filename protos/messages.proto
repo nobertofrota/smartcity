@@ -1,12 +1,21 @@
-﻿syntax = "proto3";
+syntax = "proto3";
 
 package smartcity;
 
-enum SensorType {
-  SENSOR_TYPE_UNSPECIFIED = 0;
-  SENSOR_TEMPERATURE = 1;
-  SENSOR_AIR_QUALITY = 2;
-  SENSOR_NOISE = 3;
+enum DeviceKind {
+  DEVICE_KIND_UNSPECIFIED = 0;
+  SENSOR = 1;
+  ACTUATOR = 2;
+}
+
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  TEMPERATURE_SENSOR = 1;
+  AIR_QUALITY_SENSOR = 2;
+  CAMERA = 3;
+  TRAFFIC_LIGHT = 4;
+  STREET_LIGHT = 5;
+  NOISE_SENSOR = 6;
 }
 
 enum CommandType {
@@ -15,6 +24,12 @@ enum CommandType {
   DEACTIVATE = 2;
   SET_FREQUENCY = 3;
   SET_THRESHOLD = 4;
+  CAMERA_START_RECORDING = 5;
+  CAMERA_STOP_RECORDING = 6;
+  CAMERA_SET_DIRECTION = 7;
+  TRAFFIC_LIGHT_SET_COLOR = 8;
+  TRAFFIC_LIGHT_SET_MODE = 9;
+  STREET_LIGHT_SET_BRIGHTNESS = 10;
 }
 
 enum ClientRequestType {
@@ -28,6 +43,9 @@ enum ClientRequestType {
   CHANGE_FREQUENCY = 7;
   CHANGE_THRESHOLD = 8;
   EXIT = 9;
+  AVG_HUMIDITY = 10;
+  READING_HISTORY = 11;
+  SEND_CONTROL_COMMAND = 12;
 }
 
 enum ResponseStatus {
@@ -45,38 +63,45 @@ message DiscoveryRequest {
 
 message DiscoveryResponse {
   string sensor_id = 1;
-  SensorType sensor_type = 2;
+  DeviceType sensor_type = 2;
   string sensor_ip = 3;
   uint32 control_tcp_port = 4;
   bool is_active = 5;
   double frequency_seconds = 6;
   double threshold = 7;
+  DeviceKind device_kind = 8;
+  string state_text = 9;
 }
 
 message SensorReading {
   string sensor_id = 1;
-  SensorType sensor_type = 2;
+  DeviceType sensor_type = 2;
   double value = 3;
   string unit = 4;
   int64 timestamp_unix_ms = 5;
   bool alert = 6;
   string alert_message = 7;
+  string metric = 8;
 }
 
 message ClientRequest {
   ClientRequestType request_type = 1;
   string target_sensor_id = 2;
   double value = 3;
+  CommandType command_type = 4;
+  string text_value = 5;
 }
 
 message SensorInfo {
   string sensor_id = 1;
-  SensorType sensor_type = 2;
+  DeviceType sensor_type = 2;
   string sensor_ip = 3;
   uint32 control_tcp_port = 4;
   bool is_active = 5;
   double frequency_seconds = 6;
   double threshold = 7;
+  DeviceKind device_kind = 8;
+  string state_text = 9;
 }
 
 message ClientResponse {
@@ -84,12 +109,14 @@ message ClientResponse {
   string message = 2;
   repeated SensorInfo sensors = 3;
   double metric_value = 4;
+  repeated SensorReading readings = 5;
 }
 
 message ControlCommand {
   CommandType command_type = 1;
   string sensor_id = 2;
   double value = 3;
+  string text_value = 4;
 }
 
 message ControlResponse {
@@ -99,4 +126,5 @@ message ControlResponse {
   bool is_active = 4;
   double frequency_seconds = 5;
   double threshold = 6;
+  string state_text = 7;
 }

@@ -24,35 +24,37 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\x12\tsmartcity\"|\n\x10\x44iscoveryRequest\x12\x12\n\ngateway_id\x18\x01 \x01(\t\x12\x19\n\x11request_timestamp\x18\x02 \x01(\t\x12\x18\n\x10gateway_udp_port\x18\x03 \x01(\r\x12\x1f\n\x17\x64iscovery_response_port\x18\x04 \x01(\r\"\xc0\x01\n\x11\x44iscoveryResponse\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.SensorType\x12\x11\n\tsensor_ip\x18\x03 \x01(\t\x12\x18\n\x10\x63ontrol_tcp_port\x18\x04 \x01(\r\x12\x11\n\tis_active\x18\x05 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x06 \x01(\x01\x12\x11\n\tthreshold\x18\x07 \x01(\x01\"\xac\x01\n\rSensorReading\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.SensorType\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x0c\n\x04unit\x18\x04 \x01(\t\x12\x19\n\x11timestamp_unix_ms\x18\x05 \x01(\x03\x12\r\n\x05\x61lert\x18\x06 \x01(\x08\x12\x15\n\ralert_message\x18\x07 \x01(\t\"l\n\rClientRequest\x12\x32\n\x0crequest_type\x18\x01 \x01(\x0e\x32\x1c.smartcity.ClientRequestType\x12\x18\n\x10target_sensor_id\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x01\"\xb9\x01\n\nSensorInfo\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.SensorType\x12\x11\n\tsensor_ip\x18\x03 \x01(\t\x12\x18\n\x10\x63ontrol_tcp_port\x18\x04 \x01(\r\x12\x11\n\tis_active\x18\x05 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x06 \x01(\x01\x12\x11\n\tthreshold\x18\x07 \x01(\x01\"\x8a\x01\n\x0e\x43lientResponse\x12)\n\x06status\x18\x01 \x01(\x0e\x32\x19.smartcity.ResponseStatus\x12\x0f\n\x07message\x18\x02 \x01(\t\x12&\n\x07sensors\x18\x03 \x03(\x0b\x32\x15.smartcity.SensorInfo\x12\x14\n\x0cmetric_value\x18\x04 \x01(\x01\"`\n\x0e\x43ontrolCommand\x12,\n\x0c\x63ommand_type\x18\x01 \x01(\x0e\x32\x16.smartcity.CommandType\x12\x11\n\tsensor_id\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x01\"\xa1\x01\n\x0f\x43ontrolResponse\x12)\n\x06status\x18\x01 \x01(\x0e\x32\x19.smartcity.ResponseStatus\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x11\n\tsensor_id\x18\x03 \x01(\t\x12\x11\n\tis_active\x18\x04 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x05 \x01(\x01\x12\x11\n\tthreshold\x18\x06 \x01(\x01*k\n\nSensorType\x12\x1b\n\x17SENSOR_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12SENSOR_TEMPERATURE\x10\x01\x12\x16\n\x12SENSOR_AIR_QUALITY\x10\x02\x12\x10\n\x0cSENSOR_NOISE\x10\x03*o\n\x0b\x43ommandType\x12\x1c\n\x18\x43OMMAND_TYPE_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x41\x43TIVATE\x10\x01\x12\x0e\n\nDEACTIVATE\x10\x02\x12\x11\n\rSET_FREQUENCY\x10\x03\x12\x11\n\rSET_THRESHOLD\x10\x04*\xd8\x01\n\x11\x43lientRequestType\x12\x1c\n\x18REQUEST_TYPE_UNSPECIFIED\x10\x00\x12\x10\n\x0cLIST_SENSORS\x10\x01\x12\x13\n\x0f\x41VG_TEMPERATURE\x10\x02\x12\x0b\n\x07\x41VG_CO2\x10\x03\x12\x0f\n\x0bMAX_READING\x10\x04\x12\x13\n\x0f\x41\x43TIVATE_SENSOR\x10\x05\x12\x15\n\x11\x44\x45\x41\x43TIVATE_SENSOR\x10\x06\x12\x14\n\x10\x43HANGE_FREQUENCY\x10\x07\x12\x14\n\x10\x43HANGE_THRESHOLD\x10\x08\x12\x08\n\x04\x45XIT\x10\t*D\n\x0eResponseStatus\x12\x1f\n\x1bRESPONSE_STATUS_UNSPECIFIED\x10\x00\x12\x06\n\x02OK\x10\x01\x12\t\n\x05\x45RROR\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\x12\tsmartcity\"|\n\x10\x44iscoveryRequest\x12\x12\n\ngateway_id\x18\x01 \x01(\t\x12\x19\n\x11request_timestamp\x18\x02 \x01(\t\x12\x18\n\x10gateway_udp_port\x18\x03 \x01(\r\x12\x1f\n\x17\x64iscovery_response_port\x18\x04 \x01(\r\"\x80\x02\n\x11\x44iscoveryResponse\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.DeviceType\x12\x11\n\tsensor_ip\x18\x03 \x01(\t\x12\x18\n\x10\x63ontrol_tcp_port\x18\x04 \x01(\r\x12\x11\n\tis_active\x18\x05 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x06 \x01(\x01\x12\x11\n\tthreshold\x18\x07 \x01(\x01\x12*\n\x0b\x64\x65vice_kind\x18\x08 \x01(\x0e\x32\x15.smartcity.DeviceKind\x12\x12\n\nstate_text\x18\t \x01(\t\"\xbc\x01\n\rSensorReading\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.DeviceType\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x0c\n\x04unit\x18\x04 \x01(\t\x12\x19\n\x11timestamp_unix_ms\x18\x05 \x01(\x03\x12\r\n\x05\x61lert\x18\x06 \x01(\x08\x12\x15\n\ralert_message\x18\x07 \x01(\t\x12\x0e\n\x06metric\x18\x08 \x01(\t\"\xae\x01\n\rClientRequest\x12\x32\n\x0crequest_type\x18\x01 \x01(\x0e\x32\x1c.smartcity.ClientRequestType\x12\x18\n\x10target_sensor_id\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x01\x12,\n\x0c\x63ommand_type\x18\x04 \x01(\x0e\x32\x16.smartcity.CommandType\x12\x12\n\ntext_value\x18\x05 \x01(\t\"\xf9\x01\n\nSensorInfo\x12\x11\n\tsensor_id\x18\x01 \x01(\t\x12*\n\x0bsensor_type\x18\x02 \x01(\x0e\x32\x15.smartcity.DeviceType\x12\x11\n\tsensor_ip\x18\x03 \x01(\t\x12\x18\n\x10\x63ontrol_tcp_port\x18\x04 \x01(\r\x12\x11\n\tis_active\x18\x05 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x06 \x01(\x01\x12\x11\n\tthreshold\x18\x07 \x01(\x01\x12*\n\x0b\x64\x65vice_kind\x18\x08 \x01(\x0e\x32\x15.smartcity.DeviceKind\x12\x12\n\nstate_text\x18\t \x01(\t\"\xb6\x01\n\x0e\x43lientResponse\x12)\n\x06status\x18\x01 \x01(\x0e\x32\x19.smartcity.ResponseStatus\x12\x0f\n\x07message\x18\x02 \x01(\t\x12&\n\x07sensors\x18\x03 \x03(\x0b\x32\x15.smartcity.SensorInfo\x12\x14\n\x0cmetric_value\x18\x04 \x01(\x01\x12*\n\x08readings\x18\x05 \x03(\x0b\x32\x18.smartcity.SensorReading\"t\n\x0e\x43ontrolCommand\x12,\n\x0c\x63ommand_type\x18\x01 \x01(\x0e\x32\x16.smartcity.CommandType\x12\x11\n\tsensor_id\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x12\n\ntext_value\x18\x04 \x01(\t\"\xb5\x01\n\x0f\x43ontrolResponse\x12)\n\x06status\x18\x01 \x01(\x0e\x32\x19.smartcity.ResponseStatus\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x11\n\tsensor_id\x18\x03 \x01(\t\x12\x11\n\tis_active\x18\x04 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x05 \x01(\x01\x12\x11\n\tthreshold\x18\x06 \x01(\x01\x12\x12\n\nstate_text\x18\x07 \x01(\t*C\n\nDeviceKind\x12\x1b\n\x17\x44\x45VICE_KIND_UNSPECIFIED\x10\x00\x12\n\n\x06SENSOR\x10\x01\x12\x0c\n\x08\x41\x43TUATOR\x10\x02*\x9c\x01\n\nDeviceType\x12\x1b\n\x17\x44\x45VICE_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12TEMPERATURE_SENSOR\x10\x01\x12\x16\n\x12\x41IR_QUALITY_SENSOR\x10\x02\x12\n\n\x06\x43\x41MERA\x10\x03\x12\x11\n\rTRAFFIC_LIGHT\x10\x04\x12\x10\n\x0cSTREET_LIGHT\x10\x05\x12\x10\n\x0cNOISE_SENSOR\x10\x06*\x9a\x02\n\x0b\x43ommandType\x12\x1c\n\x18\x43OMMAND_TYPE_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x41\x43TIVATE\x10\x01\x12\x0e\n\nDEACTIVATE\x10\x02\x12\x11\n\rSET_FREQUENCY\x10\x03\x12\x11\n\rSET_THRESHOLD\x10\x04\x12\x1a\n\x16\x43\x41MERA_START_RECORDING\x10\x05\x12\x19\n\x15\x43\x41MERA_STOP_RECORDING\x10\x06\x12\x18\n\x14\x43\x41MERA_SET_DIRECTION\x10\x07\x12\x1b\n\x17TRAFFIC_LIGHT_SET_COLOR\x10\x08\x12\x1a\n\x16TRAFFIC_LIGHT_SET_MODE\x10\t\x12\x1f\n\x1bSTREET_LIGHT_SET_BRIGHTNESS\x10\n*\x99\x02\n\x11\x43lientRequestType\x12\x1c\n\x18REQUEST_TYPE_UNSPECIFIED\x10\x00\x12\x10\n\x0cLIST_SENSORS\x10\x01\x12\x13\n\x0f\x41VG_TEMPERATURE\x10\x02\x12\x0b\n\x07\x41VG_CO2\x10\x03\x12\x0f\n\x0bMAX_READING\x10\x04\x12\x13\n\x0f\x41\x43TIVATE_SENSOR\x10\x05\x12\x15\n\x11\x44\x45\x41\x43TIVATE_SENSOR\x10\x06\x12\x14\n\x10\x43HANGE_FREQUENCY\x10\x07\x12\x14\n\x10\x43HANGE_THRESHOLD\x10\x08\x12\x08\n\x04\x45XIT\x10\t\x12\x10\n\x0c\x41VG_HUMIDITY\x10\n\x12\x13\n\x0fREADING_HISTORY\x10\x0b\x12\x18\n\x14SEND_CONTROL_COMMAND\x10\x0c*D\n\x0eResponseStatus\x12\x1f\n\x1bRESPONSE_STATUS_UNSPECIFIED\x10\x00\x12\x06\n\x02OK\x10\x01\x12\t\n\x05\x45RROR\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'messages_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_SENSORTYPE']._serialized_start=1226
-  _globals['_SENSORTYPE']._serialized_end=1333
-  _globals['_COMMANDTYPE']._serialized_start=1335
-  _globals['_COMMANDTYPE']._serialized_end=1446
-  _globals['_CLIENTREQUESTTYPE']._serialized_start=1449
-  _globals['_CLIENTREQUESTTYPE']._serialized_end=1665
-  _globals['_RESPONSESTATUS']._serialized_start=1667
-  _globals['_RESPONSESTATUS']._serialized_end=1735
+  _globals['_DEVICEKIND']._serialized_start=1521
+  _globals['_DEVICEKIND']._serialized_end=1588
+  _globals['_DEVICETYPE']._serialized_start=1591
+  _globals['_DEVICETYPE']._serialized_end=1747
+  _globals['_COMMANDTYPE']._serialized_start=1750
+  _globals['_COMMANDTYPE']._serialized_end=2032
+  _globals['_CLIENTREQUESTTYPE']._serialized_start=2035
+  _globals['_CLIENTREQUESTTYPE']._serialized_end=2316
+  _globals['_RESPONSESTATUS']._serialized_start=2318
+  _globals['_RESPONSESTATUS']._serialized_end=2386
   _globals['_DISCOVERYREQUEST']._serialized_start=29
   _globals['_DISCOVERYREQUEST']._serialized_end=153
   _globals['_DISCOVERYRESPONSE']._serialized_start=156
-  _globals['_DISCOVERYRESPONSE']._serialized_end=348
-  _globals['_SENSORREADING']._serialized_start=351
-  _globals['_SENSORREADING']._serialized_end=523
-  _globals['_CLIENTREQUEST']._serialized_start=525
-  _globals['_CLIENTREQUEST']._serialized_end=633
-  _globals['_SENSORINFO']._serialized_start=636
-  _globals['_SENSORINFO']._serialized_end=821
-  _globals['_CLIENTRESPONSE']._serialized_start=824
-  _globals['_CLIENTRESPONSE']._serialized_end=962
-  _globals['_CONTROLCOMMAND']._serialized_start=964
-  _globals['_CONTROLCOMMAND']._serialized_end=1060
-  _globals['_CONTROLRESPONSE']._serialized_start=1063
-  _globals['_CONTROLRESPONSE']._serialized_end=1224
+  _globals['_DISCOVERYRESPONSE']._serialized_end=412
+  _globals['_SENSORREADING']._serialized_start=415
+  _globals['_SENSORREADING']._serialized_end=603
+  _globals['_CLIENTREQUEST']._serialized_start=606
+  _globals['_CLIENTREQUEST']._serialized_end=780
+  _globals['_SENSORINFO']._serialized_start=783
+  _globals['_SENSORINFO']._serialized_end=1032
+  _globals['_CLIENTRESPONSE']._serialized_start=1035
+  _globals['_CLIENTRESPONSE']._serialized_end=1217
+  _globals['_CONTROLCOMMAND']._serialized_start=1219
+  _globals['_CONTROLCOMMAND']._serialized_end=1335
+  _globals['_CONTROLRESPONSE']._serialized_start=1338
+  _globals['_CONTROLRESPONSE']._serialized_end=1519
 # @@protoc_insertion_point(module_scope)

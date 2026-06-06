@@ -12,7 +12,7 @@ sys.path.insert(0, str(BASE_DIR / "generated"))
 from generated import messages_pb2
 
 SENSOR_ID = "temp-1"
-SENSOR_TYPE = messages_pb2.SENSOR_TEMPERATURE
+SENSOR_TYPE = messages_pb2.TEMPERATURE_SENSOR
 MULTICAST_GROUP = "224.1.1.1"
 MULTICAST_PORT = 10000
 DISCOVERY_RESPONSE_PORT = 10001
@@ -62,8 +62,11 @@ def discovery_listener():
                 is_active=True,
                 frequency_seconds=2.0,
                 threshold=0.0,
+                device_kind=messages_pb2.SENSOR,
+                state_text="Temperatura via UDP",
             )
             sock.sendto(resp.SerializeToString(), (gateway_ip, discovery_response_port))
+            print(f"[Temp] Discovery response sent to {gateway_ip}:{discovery_response_port}")
         except Exception as exc:
             print(f"[Temp] discovery error: {exc}")
 
@@ -89,6 +92,7 @@ def send_readings():
             timestamp_unix_ms=int(time.time() * 1000),
             alert=False,
             alert_message="",
+            metric="temperature",
         )
         try:
             sock.sendto(reading.SerializeToString(), (gateway_udp_ip, gateway_udp_port))

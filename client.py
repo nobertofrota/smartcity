@@ -23,7 +23,7 @@ def recv_exact(conn, n):
 
 
 def recv_msg(conn):
-    # Mesmo protocolo de framing usado no gateway/sensor controlável.
+    # Mesmo protocolo de framing usado no gateway/atuadores.
     header = recv_exact(conn, 4)
     if not header:
         return None
@@ -37,15 +37,16 @@ def send_msg(conn, payload):
 
 def show_menu():
     print("\n=== Cliente Analitico ===")
-    print("1 - Listar sensores conectados")
+    print("1 - Listar dispositivos conectados")
     print("2 - Consultar media de temperatura")
     print("3 - Consultar media de CO2")
-    print("4 - Consultar maior leitura registrada")
-    print("5 - Ativar sensor")
-    print("6 - Desativar sensor")
-    print("7 - Alterar frequencia de sensor")
-    print("8 - Alterar limiar de alerta")
-    print("9 - Sair")
+    print("4 - Consultar media de umidade")
+    print("5 - Consultar maior leitura registrada")
+    print("6 - Ligar atuador")
+    print("7 - Desligar atuador")
+    print("8 - Alterar cor do semaforo")
+    print("9 - Alterar brilho do poste")
+    print("10 - Sair")
 
 
 def build_request(option):
@@ -55,12 +56,13 @@ def build_request(option):
         "1": messages_pb2.LIST_SENSORS,
         "2": messages_pb2.AVG_TEMPERATURE,
         "3": messages_pb2.AVG_CO2,
-        "4": messages_pb2.MAX_READING,
-        "5": messages_pb2.ACTIVATE_SENSOR,
-        "6": messages_pb2.DEACTIVATE_SENSOR,
-        "7": messages_pb2.CHANGE_FREQUENCY,
-        "8": messages_pb2.CHANGE_THRESHOLD,
-        "9": messages_pb2.EXIT,
+        "4": messages_pb2.AVG_HUMIDITY,
+        "5": messages_pb2.MAX_READING,
+        "6": messages_pb2.SEND_CONTROL_COMMAND,
+        "7": messages_pb2.SEND_CONTROL_COMMAND,
+        "8": messages_pb2.SEND_CONTROL_COMMAND,
+        "9": messages_pb2.SEND_CONTROL_COMMAND,
+        "10": messages_pb2.EXIT,
     }
 
     if option not in mapping:
@@ -69,10 +71,18 @@ def build_request(option):
     req.request_type = mapping[option]
 
     # Só pedimos campos extras quando a operação realmente precisa deles.
-    if option in {"5", "6", "7", "8"}:
-        req.target_sensor_id = input("Sensor ID: ").strip()
-    if option in {"7", "8"}:
-        req.value = float(input("Novo valor: ").strip())
+    if option in {"6", "7", "8", "9"}:
+        req.target_sensor_id = input("Dispositivo ID: ").strip()
+    if option == "6":
+        req.command_type = messages_pb2.ACTIVATE
+    if option == "7":
+        req.command_type = messages_pb2.DEACTIVATE
+    if option == "8":
+        req.command_type = messages_pb2.TRAFFIC_LIGHT_SET_COLOR
+        req.text_value = input("Cor (verde/amarelo/vermelho): ").strip()
+    if option == "9":
+        req.command_type = messages_pb2.STREET_LIGHT_SET_BRIGHTNESS
+        req.value = float(input("Brilho (0-100): ").strip())
 
     return req
 
@@ -82,12 +92,12 @@ def print_response(resp):
     print(f"\n[{status_txt}] {resp.message}")
 
     if resp.sensors:
-        print("Sensores:")
+        print("Dispositivos:")
         for s in resp.sensors:
             print(
                 f"- id={s.sensor_id} type={s.sensor_type} ip={s.sensor_ip} "
                 f"control_port={s.control_tcp_port} active={s.is_active} "
-                f"freq={s.frequency_seconds:.2f}s threshold={s.threshold:.2f}"
+                f"kind={s.device_kind} state={s.state_text}"
             )
 
     if resp.metric_value != 0:

@@ -1,4 +1,5 @@
 protobuf>=6.0.0
 grpcio-tools>=1.60.0
+pandas>=2.0.0
 streamlit>=1.40.0
 streamlit-autorefresh>=1.0.1
