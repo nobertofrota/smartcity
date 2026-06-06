@@ -39,6 +39,8 @@ enum ResponseStatus {
 message DiscoveryRequest {
   string gateway_id = 1;
   string request_timestamp = 2;
+  uint32 gateway_udp_port = 3;
+  uint32 discovery_response_port = 4;
 }
 
 message DiscoveryResponse {

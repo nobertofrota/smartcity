@@ -13,8 +13,6 @@ from generated import messages_pb2
 
 SENSOR_ID = "air-1"
 SENSOR_TYPE = messages_pb2.SENSOR_AIR_QUALITY
-GATEWAY_UDP_IP = "127.0.0.1"
-GATEWAY_UDP_PORT = 9001
 MULTICAST_GROUP = "224.1.1.1"
 MULTICAST_PORT = 10000
 DISCOVERY_RESPONSE_PORT = 10001
@@ -26,6 +24,21 @@ state = {
     "threshold": 900.0,
 }
 state_lock = threading.Lock()
+
+gateway_state = {
+    "udp_ip": None,
+    "udp_port": None,
+}
+gateway_lock = threading.Lock()
+
+
+def get_local_ip(remote_ip):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect((remote_ip, 1))
+            return sock.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
 
 
 def recv_exact(conn, n):
@@ -61,20 +74,28 @@ def discovery_listener():
 
     while True:
         try:
-            data, _ = sock.recvfrom(65535)
+            data, addr = sock.recvfrom(65535)
             req = messages_pb2.DiscoveryRequest()
             req.ParseFromString(data)
+            gateway_ip = addr[0]
+            gateway_udp_port = req.gateway_udp_port or 9001
+            discovery_response_port = req.discovery_response_port or DISCOVERY_RESPONSE_PORT
+
+            with gateway_lock:
+                gateway_state["udp_ip"] = gateway_ip
+                gateway_state["udp_port"] = gateway_udp_port
+
             with state_lock:
                 resp = messages_pb2.DiscoveryResponse(
                     sensor_id=SENSOR_ID,
                     sensor_type=SENSOR_TYPE,
-                    sensor_ip="127.0.0.1",
+                    sensor_ip=get_local_ip(gateway_ip),
                     control_tcp_port=CONTROL_PORT,
                     is_active=state["active"],
                     frequency_seconds=state["frequency"],
                     threshold=state["threshold"],
                 )
-            sock.sendto(resp.SerializeToString(), ("127.0.0.1", DISCOVERY_RESPONSE_PORT))
+            sock.sendto(resp.SerializeToString(), (gateway_ip, discovery_response_port))
         except Exception as exc:
             print(f"[Air] discovery error: {exc}")
 
@@ -147,6 +168,14 @@ def send_readings():
     # Quando ativo, envia CO2 e dispara alerta quando passa do limiar configurado.
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
+        with gateway_lock:
+            gateway_udp_ip = gateway_state["udp_ip"]
+            gateway_udp_port = gateway_state["udp_port"]
+
+        if not gateway_udp_ip or not gateway_udp_port:
+            time.sleep(1)
+            continue
+
         with state_lock:
             active = state["active"]
             freq = state["frequency"]
@@ -165,7 +194,7 @@ def send_readings():
                 alert_message=(f"CO2 acima do limiar ({threshold:.2f})" if alert else ""),
             )
             try:
-                sock.sendto(reading.SerializeToString(), (GATEWAY_UDP_IP, GATEWAY_UDP_PORT))
+                sock.sendto(reading.SerializeToString(), (gateway_udp_ip, gateway_udp_port))
                 suffix = " ALERTA" if alert else ""
                 print(f"[Air] {value} ppm{suffix}")
             except Exception as exc:

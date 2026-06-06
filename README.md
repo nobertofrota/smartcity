@@ -63,6 +63,12 @@ python sensor_noise.py
 python client.py
 ```
 
+4. Iniciar cliente web Streamlit:
+
+```bash
+streamlit run web_streamlit.py
+```
+
 ## Portas e protocolos
 
 - Gateway TCP (cliente): `9000`
@@ -74,8 +80,10 @@ python client.py
 ## Funcionalidades
 
 - Descoberta automática de sensores via UDP Multicast.
+- Sensores descobrem o IP e a porta UDP do Gateway a partir da mensagem multicast.
 - Sensores enviando leituras via UDP para o Gateway.
 - Gateway centralizando sensores e histórico de leituras em memória.
+- Gateway marca sensores como inativos quando ficam sem discovery/leitura recente.
 - Cliente TCP com menu para:
   - listar sensores
   - média de temperatura
@@ -84,7 +92,14 @@ python client.py
   - ativar/desativar sensor controlável
   - alterar frequência do sensor controlável
   - alterar limiar de alerta do sensor controlável
+- Cliente Web Streamlit para listar sensores e controlar fontes controláveis pelo Gateway.
+- Painel Streamlit para iniciar/desligar Gateway e sensores durante a demonstração.
 - Sensor de qualidade do ar com alerta quando CO2 ultrapassa limiar.
+
+## Roteiro pela interface web
+
+Depois de abrir `streamlit run web_streamlit.py`, use a aba **Processos** para iniciar e desligar o Gateway e os sensores.
+Use a aba **Cliente analitico** para verificar a descoberta, consultar estados, monitorar métricas e enviar comandos.
 
 ## Exemplo de fluxo para vídeo (até 7 min)
 

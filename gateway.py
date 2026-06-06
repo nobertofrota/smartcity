@@ -3,7 +3,7 @@ import struct
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -21,6 +21,8 @@ GATEWAY_UDP_HOST = "0.0.0.0"
 GATEWAY_UDP_PORT = 9001
 MULTICAST_GROUP = "224.1.1.1"
 MULTICAST_PORT = 10000
+DISCOVERY_RESPONSE_PORT = MULTICAST_PORT + 1
+SENSOR_STALE_GRACE_SECONDS = 10.0
 
 
 class Gateway:
@@ -77,7 +79,9 @@ class Gateway:
         while True:
             req = messages_pb2.DiscoveryRequest(
                 gateway_id=GATEWAY_ID,
-                request_timestamp=datetime.utcnow().isoformat(),
+                request_timestamp=datetime.now(UTC).isoformat(),
+                gateway_udp_port=GATEWAY_UDP_PORT,
+                discovery_response_port=DISCOVERY_RESPONSE_PORT,
             )
             sock.sendto(req.SerializeToString(), (MULTICAST_GROUP, MULTICAST_PORT))
             time.sleep(5)
@@ -108,8 +112,8 @@ class Gateway:
     def multicast_response_server(self):
         # Porta separada para respostas de discovery dos sensores.
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("0.0.0.0", MULTICAST_PORT + 1))
-        print(f"[Gateway] Discovery responses on 0.0.0.0:{MULTICAST_PORT + 1}")
+        sock.bind(("0.0.0.0", DISCOVERY_RESPONSE_PORT))
+        print(f"[Gateway] Discovery responses on 0.0.0.0:{DISCOVERY_RESPONSE_PORT}")
 
         while True:
             try:
@@ -160,14 +164,17 @@ class Gateway:
 
     def build_sensor_list_response(self):
         resp = messages_pb2.ClientResponse(status=messages_pb2.OK, message="Sensores listados")
+        now = time.time()
         with self.lock:
             for sensor in self.sensors.values():
+                timeout = max(SENSOR_STALE_GRACE_SECONDS, sensor["frequency_seconds"] * 3)
+                recently_seen = now - sensor["last_seen"] <= timeout
                 info = resp.sensors.add()
                 info.sensor_id = sensor["sensor_id"]
                 info.sensor_type = sensor["sensor_type"]
                 info.sensor_ip = sensor["sensor_ip"]
                 info.control_tcp_port = sensor["control_tcp_port"]
-                info.is_active = sensor["is_active"]
+                info.is_active = sensor["is_active"] and recently_seen
                 info.frequency_seconds = sensor["frequency_seconds"]
                 info.threshold = sensor["threshold"]
         return resp
