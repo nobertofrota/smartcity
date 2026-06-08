@@ -1,4 +1,8 @@
-﻿# Smart City Sockets - Trabalho 1
+﻿
+# Link do vídeo apresentando o projeto:
+https://youtu.be/5yT9DnghPhc
+
+# Smart City Sockets - Trabalho 1
 
 Projeto de simulação de cidade inteligente com processos distribuídos usando **TCP**, **UDP**, **UDP Multicast** e **Protocol Buffers**.
 
