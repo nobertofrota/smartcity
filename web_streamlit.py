@@ -20,14 +20,15 @@ from generated import messages_pb2
 
 DEFAULT_GATEWAY_IP = "127.0.0.1"
 DEFAULT_GATEWAY_PORT = 9000
-TCP_TIMEOUT_SECONDS = 5
-AUTO_REFRESH_INTERVAL_MS = 3000
+TCP_TIMEOUT_SECONDS = 1.5
+AUTO_REFRESH_INTERVAL_MS = 5000
 LOG_DIR = BASE_DIR / "runtime_logs"
 MAX_CLIENT_LOG_LINES = 300
 MAX_CONSOLE_LINES = 500
 MAX_VIDEO_CONSOLE_LINES = 120
 MAX_VIDEO_READING_LINES = 12
 MAX_VIDEO_DISCOVERY_LINES = 12
+PROCESS_SCAN_TTL_SECONDS = 3.0
 
 PROCESS_SPECS = {
     "gateway": {
@@ -88,6 +89,8 @@ def ensure_process_state():
         st.session_state.last_gateway_error = None
     if "last_message" not in st.session_state:
         st.session_state.last_message = None
+    if "process_scan_cache" not in st.session_state:
+        st.session_state.process_scan_cache = {}
 
 
 def add_client_log(message):
@@ -100,14 +103,26 @@ def process_is_running(process):
     return process is not None and process.poll() is None
 
 
+def get_process_scan_cache():
+    if "process_scan_cache" not in st.session_state:
+        st.session_state.process_scan_cache = {}
+    return st.session_state.process_scan_cache
+
+
 def find_script_process_ids(script_name):
     if os.name != "nt":
         return []
 
+    now = datetime.now().timestamp()
+    cache = get_process_scan_cache()
+    cached = cache.get("__all__")
+    if cached and now - cached["timestamp"] <= PROCESS_SCAN_TTL_SECONDS:
+        return cached["scripts"].get(script_name, [])
+
     ps_script = (
         "Get-CimInstance Win32_Process | "
-        f"Where-Object {{ $_.Name -like 'python*' -and $_.CommandLine -like '*{script_name}*' }} | "
-        "Select-Object -ExpandProperty ProcessId"
+        "Where-Object { $_.Name -like 'python*' } | "
+        "ForEach-Object { \"$($_.ProcessId)|$($_.CommandLine)\" }"
     )
     try:
         result = subprocess.run(
@@ -120,12 +135,22 @@ def find_script_process_ids(script_name):
     except Exception:
         return []
 
-    pids = []
+    script_map = {spec["script"]: [] for spec in PROCESS_SPECS.values()}
     for line in result.stdout.splitlines():
-        line = line.strip()
-        if line.isdigit() and int(line) != os.getpid():
-            pids.append(int(line))
-    return pids
+        if "|" not in line:
+            continue
+        pid_text, command_line = line.split("|", 1)
+        for script, pids in script_map.items():
+            if script in command_line and pid_text.strip().isdigit():
+                pid = int(pid_text.strip())
+                if pid != os.getpid() and pid not in pids:
+                    pids.append(pid)
+
+    cache["__all__"] = {
+        "timestamp": now,
+        "scripts": script_map,
+    }
+    return script_map.get(script_name, [])
 
 
 def process_key_is_running(process_key):
@@ -137,6 +162,7 @@ def process_key_is_running(process_key):
 
 def stop_script_processes(script_name):
     stopped = 0
+    get_process_scan_cache().pop("__all__", None)
     for pid in find_script_process_ids(script_name):
         try:
             subprocess.run(
@@ -149,15 +175,17 @@ def stop_script_processes(script_name):
             stopped += 1
         except Exception:
             pass
+    get_process_scan_cache().pop("__all__", None)
     return stopped
 
 
 def start_process(process_key):
     spec = PROCESS_SPECS[process_key]
     current = st.session_state.managed_processes.get(process_key)
-    if process_is_running(current):
+    existing_pids = find_script_process_ids(spec["script"])
+    if process_is_running(current) or existing_pids:
         st.session_state.last_message = ("success", f"{spec['label']} ja esta em execucao.")
-        add_client_log(f"{spec['label']} ja estava em execucao.")
+        add_client_log(f"{spec['label']} ja estava em execucao. PID(s): {', '.join(str(pid) for pid in existing_pids) or current.pid}")
         return
 
     script_path = BASE_DIR / spec["script"]
@@ -175,6 +203,7 @@ def start_process(process_key):
     )
     st.session_state.managed_processes[process_key] = process
     st.session_state.managed_log_files[process_key] = str(log_path)
+    get_process_scan_cache().pop("__all__", None)
     st.session_state.last_message = ("success", f"{spec['label']} iniciado.")
     add_client_log(f"Iniciado {spec['label']} (PID {process.pid}). Logs em {log_path.name}.")
 
@@ -287,6 +316,57 @@ def send_gateway_request(host, port, req):
         return None, f"Erro ao comunicar com Gateway: {exc}"
 
 
+def send_gateway_requests(host, port, requests):
+    responses = []
+    try:
+        with socket.create_connection((host, port), timeout=TCP_TIMEOUT_SECONDS) as conn:
+            for req in requests:
+                send_msg(conn, req.SerializeToString())
+                raw = recv_msg(conn)
+                if not raw:
+                    return responses, "Gateway encerrou a conexao sem resposta"
+                resp = messages_pb2.ClientResponse()
+                resp.ParseFromString(raw)
+                responses.append(resp)
+        if st.session_state.get("last_gateway_error"):
+            add_client_log("Conexao com Gateway restabelecida.")
+            st.session_state.last_gateway_error = None
+        return responses, None
+    except OSError as exc:
+        error_text = str(exc)
+        if st.session_state.get("last_gateway_error") != error_text:
+            add_client_log(f"Falha TCP com Gateway: {exc}")
+            st.session_state.last_gateway_error = error_text
+        return responses, f"Falha ao conectar no Gateway: {exc}"
+    except Exception as exc:
+        add_client_log(f"Erro inesperado ao comunicar com Gateway: {exc}")
+        return responses, f"Erro ao comunicar com Gateway: {exc}"
+
+
+def fetch_dashboard_data(host, port):
+    request_types = [
+        messages_pb2.LIST_SENSORS,
+        messages_pb2.AVG_TEMPERATURE,
+        messages_pb2.AVG_CO2,
+        messages_pb2.AVG_HUMIDITY,
+        messages_pb2.MAX_READING,
+        messages_pb2.READING_HISTORY,
+    ]
+    reqs = [messages_pb2.ClientRequest(request_type=request_type) for request_type in request_types]
+    responses, error = send_gateway_requests(host, port, reqs)
+    if error:
+        return None, error
+
+    return {
+        "devices": responses[0] if len(responses) > 0 else None,
+        "avg_temperature": responses[1] if len(responses) > 1 else None,
+        "avg_co2": responses[2] if len(responses) > 2 else None,
+        "avg_humidity": responses[3] if len(responses) > 3 else None,
+        "max_reading": responses[4] if len(responses) > 4 else None,
+        "history": responses[5] if len(responses) > 5 else None,
+    }, None
+
+
 def send_simple_request(host, port, request_type):
     req = messages_pb2.ClientRequest(request_type=request_type)
     return send_gateway_request(host, port, req)
@@ -360,14 +440,20 @@ def render_process_panel():
 
     for key, spec in PROCESS_SPECS.items():
         process = st.session_state.managed_processes.get(key)
+        detected_pids = find_script_process_ids(spec["script"])
         running = process_key_is_running(key)
 
         with st.container(border=True):
             cols = st.columns([2, 1, 1, 1])
             cols[0].write(spec["label"])
             cols[1].write("Rodando" if running else "Parado")
-            if running and process is not None:
-                cols[2].write(f"PID {process.pid}")
+            if running:
+                if detected_pids:
+                    cols[2].write(f"PID(s): {', '.join(str(pid) for pid in detected_pids)}")
+                elif process is not None:
+                    cols[2].write(f"PID {process.pid}")
+                else:
+                    cols[2].write("Detectado")
             else:
                 cols[2].write("-")
 
@@ -487,32 +573,31 @@ def render_log_console():
     st.code(console_text, language="text", line_numbers=False)
 
 
-def render_analytics(host, port):
+def render_analytics(dashboard_data):
     st.subheader("Monitoramento de dados")
     metric_specs = [
-        ("Media temperatura", messages_pb2.AVG_TEMPERATURE, "C"),
-        ("Media CO2", messages_pb2.AVG_CO2, "ppm"),
-        ("Media umidade", messages_pb2.AVG_HUMIDITY, "%"),
-        ("Maior leitura", messages_pb2.MAX_READING, ""),
+        ("Media temperatura", dashboard_data.get("avg_temperature"), "C"),
+        ("Media CO2", dashboard_data.get("avg_co2"), "ppm"),
+        ("Media umidade", dashboard_data.get("avg_humidity"), "%"),
+        ("Maior leitura", dashboard_data.get("max_reading"), ""),
     ]
     cols = st.columns(4)
-    for col, (label, request_type, unit) in zip(cols, metric_specs):
-        resp, error = send_simple_request(host, port, request_type)
-        if error:
+    for col, (label, resp, unit) in zip(cols, metric_specs):
+        if resp is None:
             col.metric(label, "indisponivel")
         elif resp.status == messages_pb2.OK:
             suffix = f" {unit}" if unit else ""
             col.metric(label, f"{resp.metric_value:.2f}{suffix}")
-            if request_type == messages_pb2.MAX_READING:
+            if label == "Maior leitura":
                 col.caption(resp.message)
         else:
             col.metric(label, "sem dados")
             col.caption(resp.message)
 
 
-def render_history_chart(host, port):
-    resp, error = send_simple_request(host, port, messages_pb2.READING_HISTORY)
-    if error or resp.status != messages_pb2.OK or not resp.readings:
+def render_history_chart(history_response):
+    resp = history_response
+    if resp is None or resp.status != messages_pb2.OK or not resp.readings:
         st.info("Historico ainda indisponivel para grafico.")
         return
 
@@ -653,12 +738,13 @@ def render_device_controls(host, port, sensor):
 
 def render_client_panel(host, port):
     st.subheader("Cliente conectado ao Gateway")
-    resp, error = list_sensors(host, int(port))
+    dashboard_data, error = fetch_dashboard_data(host, int(port))
     if error:
         st.error(error)
         st.info("Com o Gateway desligado, o cliente web permanece aberto, mas nao consegue consultar estados nem enviar comandos.")
         return
 
+    resp = dashboard_data["devices"]
     if resp.status != messages_pb2.OK:
         st.error(resp.message)
         return
@@ -673,8 +759,8 @@ def render_client_panel(host, port):
     st.subheader("Descoberta e estados dos dispositivos")
     st.dataframe([sensor_to_dict(sensor) for sensor in devices], width="stretch", hide_index=True)
 
-    render_analytics(host, port)
-    render_history_chart(host, port)
+    render_analytics(dashboard_data)
+    render_history_chart(dashboard_data.get("history"))
 
     st.subheader("Comandos para dispositivos especificos")
     for sensor in devices:
@@ -722,7 +808,7 @@ def main():
         st.header("Gateway")
         host = st.text_input("IP", value=DEFAULT_GATEWAY_IP)
         port = st.number_input("Porta TCP", min_value=1, max_value=65535, value=DEFAULT_GATEWAY_PORT)
-        auto_refresh_default = st.session_state.get("auto_refresh_enabled", True)
+        auto_refresh_default = st.session_state.get("auto_refresh_enabled", False)
         auto_refresh = st.checkbox("Atualizacao automatica", value=auto_refresh_default)
         st.session_state.auto_refresh_enabled = auto_refresh
 
@@ -735,12 +821,18 @@ def main():
     show_last_message()
     render_script_guide()
 
-    tab_processes, tab_client, tab_logs = st.tabs(["Processos", "Cliente analitico", "Console de logs"])
-    with tab_processes:
+    page = st.radio(
+        "Tela",
+        ["Processos", "Cliente analitico", "Console de logs"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+
+    if page == "Processos":
         render_process_panel()
-    with tab_client:
+    elif page == "Cliente analitico":
         render_client_panel(host, int(port))
-    with tab_logs:
+    else:
         render_log_console()
 
 

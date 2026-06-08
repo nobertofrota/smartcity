@@ -1,0 +1,21 @@
+ROTEIRO
+* Iniciar o processo de dois dispositivos (fonte controlável/sensor contínuo)
+* Iniciar o Gateway Inteligente
+* Mostrar se a descoberta está funcionando
+* Conectar Cliente ao Gateway
+* Consultar os estados dos dispositivos conectados
+* Enviar comandos para dispositivos específicos
+* Monitorar os dados de algum sensor contínuo
+* Desligar o processo de algum dispositivo
+* Iniciar o processo de um dispositivo
+* Desligar o Gateway
+* Avaliar o que acontece com o Cliente e dispositivos
+* Reiniciar o Gateway
+* Reconectar o Cliente
+* Avaliar o que acontece com o Cliente e dispositivos
+* Iniciar o processo de um dispositivo
+* Consultar os estados dos dispositivos conectados
+* Enviar comandos para dispositivos específicos
+* Desligar todos os sensores
+* Consultar os estados dos dispositivos
+* Desligar Cliente e Gateway
