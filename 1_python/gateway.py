@@ -1,4 +1,5 @@
-﻿import socket
+import csv
+import socket
 import struct
 import threading
 import time
@@ -23,6 +24,7 @@ MULTICAST_GROUP = "224.1.1.1"
 MULTICAST_PORT = 10000
 DISCOVERY_RESPONSE_PORT = MULTICAST_PORT + 1
 SENSOR_STALE_GRACE_SECONDS = 10.0
+CSV_DIR = BASE_DIR / "data" / "csv"
 
 
 class Gateway:
@@ -33,6 +35,7 @@ class Gateway:
         self.readings_by_metric = defaultdict(list)
         self.readings_all = []
         self.lock = threading.Lock()
+        CSV_DIR.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def recv_msg(conn):
@@ -56,6 +59,38 @@ class Gateway:
     @staticmethod
     def send_msg(conn, payload):
         conn.sendall(struct.pack("!I", len(payload)) + payload)
+
+    @staticmethod
+    def _safe_filename(device_id):
+        safe = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in device_id)
+        return safe or "unknown"
+
+    def persist_reading_csv(self, reading):
+        csv_path = CSV_DIR / f"{self._safe_filename(reading.sensor_id)}.csv"
+        file_exists = csv_path.exists()
+        with csv_path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow([
+                    "sensor_id",
+                    "sensor_type",
+                    "metric",
+                    "value",
+                    "unit",
+                    "timestamp_unix_ms",
+                    "alert",
+                    "alert_message",
+                ])
+            writer.writerow([
+                reading.sensor_id,
+                reading.sensor_type,
+                reading.metric,
+                reading.value,
+                reading.unit,
+                reading.timestamp_unix_ms,
+                reading.alert,
+                reading.alert_message,
+            ])
 
     def update_sensor(self, discovery):
         # Sempre que um sensor responde ao discovery, atualizamos seu cadastro local.
@@ -107,6 +142,8 @@ class Gateway:
                     self.readings_all.append(reading)
                     if reading.sensor_id in self.sensors:
                         self.sensors[reading.sensor_id]["last_seen"] = time.time()
+
+                self.persist_reading_csv(reading)
 
                 alert = f" ALERT={reading.alert} {reading.alert_message}" if reading.alert else ""
                 print(f"[Gateway] Reading {reading.sensor_id} {reading.metric}={reading.value} {reading.unit}{alert}")

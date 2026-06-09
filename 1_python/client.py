@@ -42,11 +42,12 @@ def show_menu():
     print("3 - Consultar media de CO2")
     print("4 - Consultar media de umidade")
     print("5 - Consultar maior leitura registrada")
-    print("6 - Ligar atuador")
-    print("7 - Desligar atuador")
-    print("8 - Alterar cor do semaforo")
-    print("9 - Alterar brilho do poste")
-    print("10 - Sair")
+    print("6 - Consultar historico de leituras")
+    print("7 - Ligar atuador")
+    print("8 - Desligar atuador")
+    print("9 - Alterar cor do semaforo")
+    print("10 - Alterar brilho do poste")
+    print("11 - Sair")
 
 
 def build_request(option):
@@ -58,11 +59,12 @@ def build_request(option):
         "3": messages_pb2.AVG_CO2,
         "4": messages_pb2.AVG_HUMIDITY,
         "5": messages_pb2.MAX_READING,
-        "6": messages_pb2.SEND_CONTROL_COMMAND,
+        "6": messages_pb2.READING_HISTORY,
         "7": messages_pb2.SEND_CONTROL_COMMAND,
         "8": messages_pb2.SEND_CONTROL_COMMAND,
         "9": messages_pb2.SEND_CONTROL_COMMAND,
-        "10": messages_pb2.EXIT,
+        "10": messages_pb2.SEND_CONTROL_COMMAND,
+        "11": messages_pb2.EXIT,
     }
 
     if option not in mapping:
@@ -71,16 +73,16 @@ def build_request(option):
     req.request_type = mapping[option]
 
     # Só pedimos campos extras quando a operação realmente precisa deles.
-    if option in {"6", "7", "8", "9"}:
+    if option in {"7", "8", "9", "10"}:
         req.target_sensor_id = input("Dispositivo ID: ").strip()
-    if option == "6":
-        req.command_type = messages_pb2.ACTIVATE
     if option == "7":
-        req.command_type = messages_pb2.DEACTIVATE
+        req.command_type = messages_pb2.ACTIVATE
     if option == "8":
+        req.command_type = messages_pb2.DEACTIVATE
+    if option == "9":
         req.command_type = messages_pb2.TRAFFIC_LIGHT_SET_COLOR
         req.text_value = input("Cor (verde/amarelo/vermelho): ").strip()
-    if option == "9":
+    if option == "10":
         req.command_type = messages_pb2.STREET_LIGHT_SET_BRIGHTNESS
         req.value = float(input("Brilho (0-100): ").strip())
 
@@ -102,6 +104,15 @@ def print_response(resp):
 
     if resp.metric_value != 0:
         print(f"Valor: {resp.metric_value:.2f}")
+
+    if resp.readings:
+        print("Historico:")
+        for r in resp.readings:
+            print(
+                f"- id={r.sensor_id} metric={r.metric} value={r.value:.2f} "
+                f"unit={r.unit} ts={r.timestamp_unix_ms} alert={r.alert} "
+                f"msg={r.alert_message}"
+            )
 
 
 def main():

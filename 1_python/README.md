@@ -101,6 +101,7 @@ streamlit run web_streamlit.py
 - Sensor de qualidade do ar enviando CO2 e umidade.
 - Atuadores controláveis via TCP: câmera, semáforo e luz do poste.
 - Gateway centralizando sensores e histórico de leituras em memória.
+- Gateway também persiste leituras em CSV por dispositivo em `data/csv/<sensor_id>.csv`.
 - Gateway marca dispositivos como inativos quando ficam sem discovery/leitura recente.
 - Cliente TCP com menu para:
   - listar dispositivos
@@ -108,6 +109,7 @@ streamlit run web_streamlit.py
   - média de CO2
   - média de umidade
   - maior leitura registrada
+  - consultar histórico de leituras
   - enviar comandos para atuadores
 - Cliente Web Streamlit para listar sensores/atuadores e controlar câmera, semáforo e poste pelo Gateway.
 - Painel Streamlit para iniciar/desligar Gateway, sensores e atuadores durante a demonstração.
@@ -150,4 +152,4 @@ Durante o roteiro, use **Console de logs** para provar discovery multicast, leit
 
 - O sistema trata falhas de conexão com mensagens de erro sem travar o processo.
 - Se um sensor cair, o gateway continua executando e aceitando cliente.
-- O histórico é mantido apenas em memória (reiniciar gateway limpa dados).
+- O histórico fica disponível no cliente e também é gravado em `data/csv/<sensor_id>.csv`.
