@@ -66,3 +66,4 @@ Ordem recomendada:
 - A comunicacao principal do trabalho esta coberta pelos processos acima.
 - O gateway grava cada leitura recebida em `data/csv/<sensor_id>.csv`.
 - O cliente analitico tambem pode consultar o historico de leituras retornado pelo gateway.
+- Os logs da execucao automatizada ficam em `../1_python/runtime_logs/` quando o cliente Web em Python e usado para iniciar os processos.
