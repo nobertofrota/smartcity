@@ -11,6 +11,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+import psutil
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
@@ -110,41 +111,26 @@ def get_process_scan_cache():
 
 
 def find_script_process_ids(script_name):
-    if os.name != "nt":
-        return []
-
     now = datetime.now().timestamp()
     cache = get_process_scan_cache()
     cached = cache.get("__all__")
     if cached and now - cached["timestamp"] <= PROCESS_SCAN_TTL_SECONDS:
         return cached["scripts"].get(script_name, [])
 
-    ps_script = (
-        "Get-CimInstance Win32_Process | "
-        "Where-Object { $_.Name -like 'python*' } | "
-        "ForEach-Object { \"$($_.ProcessId)|$($_.CommandLine)\" }"
-    )
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-    except Exception:
-        return []
-
     script_map = {spec["script"]: [] for spec in PROCESS_SPECS.values()}
-    for line in result.stdout.splitlines():
-        if "|" not in line:
+    for proc in psutil.process_iter(attrs=["pid", "cmdline"]):
+        try:
+            pid = int(proc.info["pid"])
+            cmdline = proc.info.get("cmdline") or []
+        except (psutil.Error, TypeError, ValueError):
             continue
-        pid_text, command_line = line.split("|", 1)
+
+        command_line = " ".join(str(part) for part in cmdline if part)
+        if pid == os.getpid():
+            continue
         for script, pids in script_map.items():
-            if script in command_line and pid_text.strip().isdigit():
-                pid = int(pid_text.strip())
-                if pid != os.getpid() and pid not in pids:
-                    pids.append(pid)
+            if script in command_line and pid not in pids:
+                pids.append(pid)
 
     cache["__all__"] = {
         "timestamp": now,
@@ -165,15 +151,14 @@ def stop_script_processes(script_name):
     get_process_scan_cache().pop("__all__", None)
     for pid in find_script_process_ids(script_name):
         try:
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/F", "/T"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
+            proc = psutil.Process(pid)
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except psutil.TimeoutExpired:
+                proc.kill()
             stopped += 1
-        except Exception:
+        except (psutil.Error, OSError):
             pass
     get_process_scan_cache().pop("__all__", None)
     return stopped

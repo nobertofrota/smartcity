@@ -1,5 +1,3 @@
-#define WIN32_LEAN_AND_MEAN
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -7,78 +5,16 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-
-#pragma comment(lib, "Ws2_32.lib")
+#include "smartcity_common.h"
 
 #define GATEWAY_TCP_IP "127.0.0.1"
 #define GATEWAY_TCP_PORT 9000
-
-#define RESPONSE_STATUS_OK 1
-#define RESPONSE_STATUS_ERROR 2
-
-#define REQUEST_LIST_SENSORS 1
-#define REQUEST_AVG_TEMPERATURE 2
-#define REQUEST_AVG_CO2 3
-#define REQUEST_MAX_READING 4
-#define REQUEST_READING_HISTORY 11
-#define REQUEST_EXIT 9
-#define REQUEST_AVG_HUMIDITY 10
-#define REQUEST_SEND_CONTROL_COMMAND 12
-
-#define COMMAND_ACTIVATE 1
-#define COMMAND_DEACTIVATE 2
-#define COMMAND_TRAFFIC_LIGHT_SET_COLOR 8
-#define COMMAND_STREET_LIGHT_SET_BRIGHTNESS 10
 
 typedef struct {
     uint8_t *data;
     size_t len;
     size_t cap;
 } Buffer;
-
-typedef struct {
-    char *sensor_id;
-    int sensor_type;
-    char *sensor_ip;
-    uint32_t control_tcp_port;
-    bool is_active;
-    double frequency_seconds;
-    double threshold;
-    int device_kind;
-    char *state_text;
-} SensorInfo;
-
-typedef struct {
-    char *sensor_id;
-    int sensor_type;
-    double value;
-    char *unit;
-    int64_t timestamp_unix_ms;
-    bool alert;
-    char *alert_message;
-    char *metric;
-} SensorReading;
-
-typedef struct {
-    int status;
-    char *message;
-    SensorInfo *sensors;
-    size_t sensor_count;
-    double metric_value;
-    SensorReading *readings;
-    size_t reading_count;
-} ClientResponse;
-
-typedef struct {
-    int request_type;
-    char *target_sensor_id;
-    double value;
-    int command_type;
-    char *text_value;
-} ClientRequest;
 
 static void buffer_init(Buffer *buf) {
     buf->data = NULL;
@@ -770,7 +706,7 @@ static void show_menu(void) {
 }
 
 static const char *status_text(int status) {
-    return status == RESPONSE_STATUS_OK ? "OK" : "ERROR";
+    return status == OK ? "OK" : "ERROR";
 }
 
 static void print_response(const ClientResponse *resp) {
@@ -819,28 +755,28 @@ static bool build_request(int option, ClientRequest *req) {
 
     switch (option) {
         case 1:
-            req->request_type = REQUEST_LIST_SENSORS;
+            req->request_type = LIST_SENSORS;
             break;
         case 2:
-            req->request_type = REQUEST_AVG_TEMPERATURE;
+            req->request_type = AVG_TEMPERATURE;
             break;
         case 3:
-            req->request_type = REQUEST_AVG_CO2;
+            req->request_type = AVG_CO2;
             break;
         case 4:
-            req->request_type = REQUEST_AVG_HUMIDITY;
+            req->request_type = AVG_HUMIDITY;
             break;
         case 5:
-            req->request_type = REQUEST_MAX_READING;
+            req->request_type = MAX_READING;
             break;
         case 6:
-            req->request_type = REQUEST_READING_HISTORY;
+            req->request_type = READING_HISTORY;
             break;
         case 7:
         case 8:
         case 9:
         case 10:
-            req->request_type = REQUEST_SEND_CONTROL_COMMAND;
+            req->request_type = SEND_CONTROL_COMMAND;
             if (!read_line("Dispositivo ID: ", input, sizeof(input))) {
                 return false;
             }
@@ -850,18 +786,18 @@ static bool build_request(int option, ClientRequest *req) {
             }
             break;
         case 11:
-            req->request_type = REQUEST_EXIT;
+            req->request_type = EXIT;
             break;
         default:
             return false;
     }
 
     if (option == 7) {
-        req->command_type = COMMAND_ACTIVATE;
+        req->command_type = ACTIVATE;
     } else if (option == 8) {
-        req->command_type = COMMAND_DEACTIVATE;
+        req->command_type = DEACTIVATE;
     } else if (option == 9) {
-        req->command_type = COMMAND_TRAFFIC_LIGHT_SET_COLOR;
+        req->command_type = TRAFFIC_LIGHT_SET_COLOR;
         if (!read_line("Cor (verde/amarelo/vermelho): ", input, sizeof(input))) {
             return false;
         }
@@ -870,7 +806,7 @@ static bool build_request(int option, ClientRequest *req) {
             return false;
         }
     } else if (option == 10) {
-        req->command_type = COMMAND_STREET_LIGHT_SET_BRIGHTNESS;
+        req->command_type = STREET_LIGHT_SET_BRIGHTNESS;
         if (!read_line("Brilho (0-100): ", input, sizeof(input))) {
             return false;
         }

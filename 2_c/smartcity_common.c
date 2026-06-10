@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#include <ws2tcpip.h>
-#include <windows.h>
+#ifndef _WIN32
+#include <sys/time.h>
+#endif
 
 static bool buffer_reserve(SmartBuffer *buf, size_t extra) {
     if (buf->len + extra <= buf->cap) {
@@ -246,6 +246,7 @@ char *smart_get_local_ip(const char *remote_ip) {
 }
 
 int64_t smart_unix_time_ms(void) {
+#ifdef _WIN32
     FILETIME ft;
     ULARGE_INTEGER uli;
     const uint64_t EPOCH_DIFF_100NS = 116444736000000000ULL;
@@ -254,6 +255,52 @@ int64_t smart_unix_time_ms(void) {
     uli.LowPart = ft.dwLowDateTime;
     uli.HighPart = ft.dwHighDateTime;
     return (int64_t)((uli.QuadPart - EPOCH_DIFF_100NS) / 10000ULL);
+#else
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0) {
+        return 0;
+    }
+    return (int64_t)tv.tv_sec * 1000LL + (int64_t)(tv.tv_usec / 1000);
+#endif
+}
+
+double smart_now_seconds(void) {
+    return (double)smart_unix_time_ms() / 1000.0;
+}
+
+void smart_iso_utc_timestamp(char *buf, size_t size) {
+    time_t now = time(NULL);
+    struct tm tm_buf;
+    struct tm *tm_ptr = NULL;
+
+    if (!buf || size == 0) {
+        return;
+    }
+
+#ifdef _WIN32
+    tm_ptr = gmtime(&now);
+    if (tm_ptr) {
+        tm_buf = *tm_ptr;
+        tm_ptr = &tm_buf;
+    }
+#else
+    if (gmtime_r(&now, &tm_buf)) {
+        tm_ptr = &tm_buf;
+    }
+#endif
+
+    if (!tm_ptr) {
+        snprintf(buf, size, "1970-01-01T00:00:00Z");
+        return;
+    }
+
+    snprintf(buf, size, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+             tm_ptr->tm_year + 1900,
+             tm_ptr->tm_mon + 1,
+             tm_ptr->tm_mday,
+             tm_ptr->tm_hour,
+             tm_ptr->tm_min,
+             tm_ptr->tm_sec);
 }
 
 void smart_free_discovery_response(DiscoveryResponse *resp) {

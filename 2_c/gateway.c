@@ -1,6 +1,5 @@
 #include "smartcity_common.h"
 
-#include <process.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,14 +21,11 @@ typedef struct {
 #define CSV_ROOT_DIR "data\\csv"
 
 static double now_seconds(void) {
-    return (double)GetTickCount64() / 1000.0;
+    return smart_now_seconds();
 }
 
 static void iso_timestamp(char *buf, size_t size) {
-    SYSTEMTIME st;
-    GetSystemTime(&st);
-    snprintf(buf, size, "%04u-%02u-%02uT%02u:%02u:%02uZ",
-             st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    smart_iso_utc_timestamp(buf, size);
 }
 
 static void free_sensor_record(SensorRecord *record) {

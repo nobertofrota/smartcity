@@ -29,3 +29,17 @@ air-1,2,co2,600.89,ppm,1781043922802,False,
 air-1,2,humidity,80.52,%,1781043922802,False,
 air-1,2,co2,1013.12,ppm,1781043924802,True,CO2 acima do limiar (900.00)
 air-1,2,humidity,41.66,%,1781043924802,False,
+air-1,2,co2,1113.9,ppm,1781052649084,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,71.22,%,1781052649084,False,
+air-1,2,co2,482.71,ppm,1781052651084,False,
+air-1,2,humidity,68.93,%,1781052651084,False,
+air-1,2,co2,1172.33,ppm,1781052653085,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,43.26,%,1781052653085,False,
+air-1,2,co2,756.2,ppm,1781052655085,False,
+air-1,2,humidity,65.69,%,1781052655085,False,
+air-1,2,co2,948.49,ppm,1781052657085,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,36.83,%,1781052657085,False,
+air-1,2,co2,1090.54,ppm,1781052659086,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,80.5,%,1781052659086,False,
+air-1,2,co2,738.63,ppm,1781052661087,False,
+air-1,2,humidity,43.42,%,1781052661087,False,

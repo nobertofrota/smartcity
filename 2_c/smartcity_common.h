@@ -9,13 +9,122 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
+#ifndef MAX_PATH
+#define MAX_PATH 4096
+#endif
+
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 
 #ifdef ERROR
 #undef ERROR
+#endif
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+typedef int SOCKET;
+typedef unsigned short WORD;
+typedef unsigned short u_short;
+typedef unsigned long DWORD;
+typedef void *LPVOID;
+typedef void *HANDLE;
+typedef int BOOL;
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#define WINAPI
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
+#define MAKEWORD(a, b) ((WORD)(((a) & 0xff) | (((b) & 0xff) << 8)))
+
+typedef struct {
+    int unused;
+} WSADATA;
+
+static inline int WSAStartup(WORD version, WSADATA *data) {
+    (void)version;
+    (void)data;
+    return 0;
+}
+
+static inline int WSACleanup(void) {
+    return 0;
+}
+
+static inline int closesocket(SOCKET sock) {
+    return close(sock);
+}
+
+static inline void Sleep(unsigned long ms) {
+    usleep(ms * 1000);
+}
+
+typedef pthread_mutex_t CRITICAL_SECTION;
+
+static inline void InitializeCriticalSection(CRITICAL_SECTION *lock) {
+    pthread_mutex_init(lock, NULL);
+}
+
+static inline void DeleteCriticalSection(CRITICAL_SECTION *lock) {
+    pthread_mutex_destroy(lock);
+}
+
+static inline void EnterCriticalSection(CRITICAL_SECTION *lock) {
+    pthread_mutex_lock(lock);
+}
+
+static inline void LeaveCriticalSection(CRITICAL_SECTION *lock) {
+    pthread_mutex_unlock(lock);
+}
+
+typedef DWORD (*SmartThreadProc)(LPVOID);
+
+typedef struct {
+    SmartThreadProc proc;
+    LPVOID param;
+} SmartThreadStart;
+
+static inline void *smart_thread_entry(void *arg) {
+    SmartThreadStart *start = (SmartThreadStart *)arg;
+    SmartThreadProc proc = start->proc;
+    LPVOID param = start->param;
+    free(start);
+    (void)proc(param);
+    return NULL;
+}
+
+static inline HANDLE smart_create_thread(SmartThreadProc proc, LPVOID param) {
+    pthread_t thread;
+    SmartThreadStart *start = (SmartThreadStart *)malloc(sizeof(*start));
+    if (!start) {
+        return NULL;
+    }
+    start->proc = proc;
+    start->param = param;
+    if (pthread_create(&thread, NULL, smart_thread_entry, start) != 0) {
+        free(start);
+        return NULL;
+    }
+    pthread_detach(thread);
+    return NULL;
+}
+
+#define CreateThread(security, stack, start, param, flags, id) smart_create_thread((SmartThreadProc)(start), (param))
 #endif
 
 #define SMARTCITY_GATEWAY_ID "gateway-1"
@@ -203,5 +312,7 @@ bool smart_parse_control_response(ControlResponse *resp, const uint8_t *data, si
 
 void smart_free_client_request(ClientRequest *req);
 void smart_free_control_command(ControlCommand *cmd);
+double smart_now_seconds(void);
+void smart_iso_utc_timestamp(char *buf, size_t size);
 
 #endif
