@@ -1,0 +1,31 @@
+sensor_id,sensor_type,metric,value,unit,timestamp_unix_ms,alert,alert_message
+air-1,2,co2,938.99,ppm,1781043881899,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,41.87,%,1781043881899,False,
+air-1,2,co2,958.05,ppm,1781043883901,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,40.32,%,1781043883901,False,
+air-1,2,co2,833.88,ppm,1781043885902,False,
+air-1,2,humidity,71.69,%,1781043885902,False,
+air-1,2,co2,539.54,ppm,1781043887903,False,
+air-1,2,humidity,58.9,%,1781043887903,False,
+air-1,2,co2,854.25,ppm,1781043889904,False,
+air-1,2,humidity,60.88,%,1781043889904,False,
+air-1,2,co2,716.49,ppm,1781043891904,False,
+air-1,2,humidity,63.76,%,1781043891904,False,
+air-1,2,co2,505.66,ppm,1781043893905,False,
+air-1,2,humidity,78.69,%,1781043893905,False,
+air-1,2,co2,998.0,ppm,1781043895906,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,56.11,%,1781043895906,False,
+air-1,2,co2,795.38,ppm,1781043897907,False,
+air-1,2,humidity,42.95,%,1781043897907,False,
+air-1,2,co2,463.38,ppm,1781043899908,False,
+air-1,2,humidity,36.92,%,1781043899908,False,
+air-1,2,co2,546.51,ppm,1781043903909,False,
+air-1,2,humidity,77.29,%,1781043903909,False,
+air-1,2,co2,1023.86,ppm,1781043905910,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,67.19,%,1781043905910,False,
+air-1,2,co2,527.38,ppm,1781043907911,False,
+air-1,2,humidity,78.08,%,1781043907911,False,
+air-1,2,co2,600.89,ppm,1781043922802,False,
+air-1,2,humidity,80.52,%,1781043922802,False,
+air-1,2,co2,1013.12,ppm,1781043924802,True,CO2 acima do limiar (900.00)
+air-1,2,humidity,41.66,%,1781043924802,False,

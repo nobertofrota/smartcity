@@ -2,13 +2,21 @@
 #define SMARTCITY_COMMON_H
 
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
+
+#ifdef ERROR
+#undef ERROR
+#endif
 
 #define SMARTCITY_GATEWAY_ID "gateway-1"
 #define SMARTCITY_GATEWAY_TCP_HOST "0.0.0.0"
